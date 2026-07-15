@@ -35,9 +35,11 @@ const state = {
   formStatus: 'stock',
   formRating: 0,
   formRepeat: '',
-  formBack: 'home',      // フォームの「戻る」の行き先: home / add / search / detail
-  rakutenAppId: '',      // 楽天アプリID(設定画面で登録)
-  searchOriginJan: '',   // バーコード読み取りから来た場合のJANコード
+  formBack: 'home',        // フォームの「戻る」の行き先: home / add / search / detail
+  rakutenAppId: '',        // 楽天アプリケーションID(設定画面で登録)
+  rakutenAccessKey: '',    // 楽天アクセスキー(pk_〜。2026年の新APIで必須になった)
+  rakutenAffiliateId: '',  // 楽天アフィリエイトID(任意)
+  searchOriginJan: '',     // バーコード読み取りから来た場合のJANコード
 };
 
 // 画像表示用URLの後片付けリスト(メモリ節約)
@@ -583,21 +585,35 @@ async function deleteCurrent() {
 
 function openSettings() {
   $('#settingAppId').value = state.rakutenAppId || '';
+  $('#settingAccessKey').value = state.rakutenAccessKey || '';
+  $('#settingAffiliateId').value = state.rakutenAffiliateId || '';
   $('#appIdStatus').textContent = '';
   showView('settings', '設定');
 }
 
 async function saveAppId() {
-  const v = $('#settingAppId').value.trim();
-  await dbPutSetting('rakutenAppId', v);
-  state.rakutenAppId = v;
-  $('#appIdStatus').textContent = v ? '保存しました。検索とバーコード読み取りが使えます。' : '空にして保存しました。';
+  const id = $('#settingAppId').value.trim();
+  const key = $('#settingAccessKey').value.trim();
+  const aff = $('#settingAffiliateId').value.trim();
+  await dbPutSetting('rakutenAppId', id);
+  await dbPutSetting('rakutenAccessKey', key);
+  await dbPutSetting('rakutenAffiliateId', aff);
+  state.rakutenAppId = id;
+  state.rakutenAccessKey = key;
+  state.rakutenAffiliateId = aff;
+  if (id && key) {
+    $('#appIdStatus').textContent = '保存しました。検索とバーコード読み取りが使えます。';
+  } else if (id || key) {
+    $('#appIdStatus').textContent = '保存しました。検索にはアプリケーションIDとアクセスキーの両方が必要です。';
+  } else {
+    $('#appIdStatus').textContent = '空にして保存しました。';
+  }
 }
 
 // ---------- 登録方法の選択 ----------
 
 function openAdd() {
-  const hasId = !!state.rakutenAppId;
+  const hasId = !!(state.rakutenAppId && state.rakutenAccessKey);
   $('#btnMethodScan').disabled = !hasId;
   $('#btnMethodSearch').disabled = !hasId;
   $('#addApiNote').classList.toggle('hidden', hasId);
@@ -685,25 +701,38 @@ async function runSearch() {
   status.textContent = '検索しています…';
   $('#searchResults').innerHTML = '';
   try {
-    const url = new URL('https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601');
+    // 2026年2月刷新後の新しい楽天API(旧 app.rakuten.co.jp は2026年5月で停止)
+    const url = new URL('https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701');
     url.searchParams.set('applicationId', state.rakutenAppId);
+    url.searchParams.set('accessKey', state.rakutenAccessKey);
+    if (state.rakutenAffiliateId) url.searchParams.set('affiliateId', state.rakutenAffiliateId);
     url.searchParams.set('keyword', q);
     url.searchParams.set('hits', '15');
     url.searchParams.set('formatVersion', '2');
     const res = await fetch(url);
     if (!res.ok) {
       let msg = '検索に失敗しました。少し時間をおいてもう一度お試しください。';
+      if (res.status === 401 || res.status === 403) {
+        msg = 'アプリケーションIDまたはアクセスキーが正しくないようです。設定画面で、2つとも正しく貼り付けられているか確認してください。';
+      }
       try {
         const ej = await res.json();
-        if (ej && /applicationId|application_id/i.test(ej.error_description || '')) {
-          msg = '楽天アプリIDが正しくないようです。設定画面で確認してください。';
+        const em = (ej && ej.errors && ej.errors.errorMessage) || '';
+        if (/access key/i.test(em)) {
+          msg = 'アクセスキーが正しくないようです。設定画面で「pk_」で始まるキーを確認してください。';
+        } else if (/application/i.test(em)) {
+          msg = 'アプリケーションIDが正しくないようです。設定画面で確認してください。';
+        } else if (/auth/i.test(em)) {
+          msg = '楽天の認証がうまくいきませんでした。設定画面のアプリケーションIDとアクセスキーが正しいか確認してください。';
         }
-      } catch (e) { /* エラー内容が読めない場合は一般メッセージのまま */ }
+      } catch (e) { /* エラー内容が読めない場合は上のメッセージのまま */ }
       status.textContent = `${msg} 下のボタンから手動でも入力できます。`;
       return;
     }
     const json = await res.json();
-    const items = json.Items || [];
+    // 新APIは items(小文字)、旧APIは Items(大文字)だったため両対応。
+    // formatVersion=1の入れ子形({item: {...}})が来ても中身を取り出す
+    const items = (json.items || json.Items || []).map((it) => it.item || it);
     if (items.length === 0) {
       status.textContent = '見つかりませんでした。言葉を変えて再検索するか、下のボタンから手動で入力できます。';
       return;
@@ -954,6 +983,8 @@ async function init() {
   setupEvents();
   try {
     state.rakutenAppId = (await dbGetSetting('rakutenAppId')) || '';
+    state.rakutenAccessKey = (await dbGetSetting('rakutenAccessKey')) || '';
+    state.rakutenAffiliateId = (await dbGetSetting('rakutenAffiliateId')) || '';
     await loadProducts();
   } catch (err) {
     console.error(err);

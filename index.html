@@ -54,7 +54,7 @@
       <span class="method-desc">すべての項目を自分で入力します</span>
     </button>
     <p id="addApiNote" class="api-note hidden">
-      バーコード読み取りと検索を使うには、楽天アプリID(無料)の登録が必要です。
+      バーコード読み取りと検索を使うには、楽天のアプリケーションIDとアクセスキー(無料)の登録が必要です。
       <button id="btnGoSettings" class="linklike" type="button">設定画面を開く</button>
     </p>
   </section>
@@ -85,14 +85,20 @@
   <!-- 設定 -->
   <section id="view-settings" class="view hidden">
     <div class="settings-card">
-      <h2>楽天アプリID</h2>
-      <p class="settings-desc">商品検索とバーコード読み取りに使います。IDはこの端末の中だけに保存されます。</p>
-      <input type="text" id="settingAppId" inputmode="numeric" placeholder="発行されたアプリIDを貼り付け">
+      <h2>楽天API設定</h2>
+      <p class="settings-desc">商品検索とバーコード読み取りに使います。入力した内容はこの端末の中だけに保存されます。</p>
+      <label class="settings-label" for="settingAppId">アプリケーションID</label>
+      <input type="text" id="settingAppId" placeholder="例: a3e4498d-b570-…" autocapitalize="off" autocorrect="off">
+      <label class="settings-label" for="settingAccessKey">アクセスキー(pk_ で始まる文字列)</label>
+      <input type="text" id="settingAccessKey" placeholder="例: pk_…" autocapitalize="off" autocorrect="off">
+      <label class="settings-label" for="settingAffiliateId">アフィリエイトID(任意)</label>
+      <input type="text" id="settingAffiliateId" placeholder="なくても検索できます" autocapitalize="off" autocorrect="off">
       <button id="btnSaveAppId" class="btn btn-primary btn-block" type="button">保存する</button>
       <p id="appIdStatus" class="settings-status"></p>
       <p class="settings-help">
-        アプリIDは <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a> で無料で発行できます(楽天会員のログインが必要です)。
-        ログイン後「アプリID発行」を開き、アプリ名(例: Cosme log)とアプリURL(このアプリのURL)を入力すると、その場で発行されます。
+        IDとキーは <a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a> で無料で発行できます(楽天会員のログインが必要です)。
+        発行後の「アプリ一覧」に表示される<strong>アプリケーションID</strong>と、
+        <strong>アクセスキー</strong>(●●●の右にある目のマークで表示→コピー)をそれぞれ貼り付けてください。
       </p>
     </div>
   </section>
