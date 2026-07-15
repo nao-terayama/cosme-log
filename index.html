@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cosme log</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <button id="btnBack" class="hdr-btn hidden" type="button">‹ 戻る</button>
+  <h1 id="hdrTitle">Cosme log</h1>
+  <span class="hdr-spacer"></span>
+</header>
+
+<main>
+
+  <!-- ホーム(一覧) -->
+  <section id="view-home" class="view">
+    <div class="toolbar">
+      <select id="filterCategory" aria-label="カテゴリで絞り込み"></select>
+      <select id="filterStatus" aria-label="ステータスで絞り込み"></select>
+      <select id="sortSelect" aria-label="並び替え">
+        <option value="createdAt:desc">登録が新しい順</option>
+        <option value="createdAt:asc">登録が古い順</option>
+        <option value="purchaseDate:desc">購入日が新しい順</option>
+        <option value="purchaseDate:asc">購入日が古い順</option>
+      </select>
+    </div>
+    <p id="listCount" class="list-count"></p>
+    <div id="productList" class="product-list"></div>
+    <div id="emptyMsg" class="empty-msg hidden">
+      <p>まだ商品が登録されていません。</p>
+      <p>下の「＋ 商品を登録」ボタンから始めましょう。</p>
+    </div>
+    <div class="fab-space"></div>
+    <button id="btnAdd" class="fab" type="button">＋ 商品を登録</button>
+  </section>
+
+  <!-- 登録・編集フォーム -->
+  <section id="view-form" class="view hidden">
+    <form id="productForm" autocomplete="off">
+
+      <div class="field">
+        <label for="fName">商品名 <span class="req">必須</span></label>
+        <input type="text" id="fName" placeholder="例: ○○○ 化粧水">
+      </div>
+
+      <div class="field">
+        <label for="fBrand">ブランド・メーカー</label>
+        <input type="text" id="fBrand">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fCategory">カテゴリ <span class="req">必須</span></label>
+          <select id="fCategory"></select>
+        </div>
+        <div class="field">
+          <label for="fItemType">アイテム種別</label>
+          <select id="fItemType"></select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>商品画像</label>
+        <div class="image-picker">
+          <img id="fImagePreview" class="hidden" alt="商品画像プレビュー">
+          <div class="image-picker-btns">
+            <label class="btn btn-sub" for="fImage">写真を選ぶ</label>
+            <input type="file" id="fImage" accept="image/*" class="visually-hidden">
+            <button id="btnRemoveImage" class="btn btn-sub hidden" type="button">画像を外す</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fVolume">容量</label>
+          <input type="text" id="fVolume" placeholder="例: 150mL">
+        </div>
+        <div class="field">
+          <label for="fPrice">価格(円・税込)</label>
+          <input type="number" id="fPrice" inputmode="numeric" min="0" placeholder="例: 1980">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fJan">JANコード(バーコードの数字)</label>
+        <input type="text" id="fJan" inputmode="numeric" placeholder="例: 4901234567894">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fPurchaseDate">購入日</label>
+          <input type="date" id="fPurchaseDate">
+        </div>
+        <div class="field">
+          <label for="fPurchasePlace">購入場所</label>
+          <input type="text" id="fPurchasePlace" placeholder="例: ドラッグストア">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ステータス</label>
+        <div class="seg" id="fStatusSeg">
+          <button type="button" data-value="stock">ストック</button>
+          <button type="button" data-value="inUse">使用中</button>
+          <button type="button" data-value="finished">使い切った</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="fOpenedDate">開封日</label>
+          <input type="date" id="fOpenedDate">
+        </div>
+        <div class="field">
+          <label for="fPao">開封後の期限(か月)</label>
+          <input type="number" id="fPao" inputmode="numeric" min="1" placeholder="例: 6">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fFinishedDate">使い切った日</label>
+        <input type="date" id="fFinishedDate">
+      </div>
+
+      <div class="field">
+        <label>星評価</label>
+        <div class="stars" id="fRating"></div>
+      </div>
+
+      <div class="field">
+        <label>リピート意向</label>
+        <div class="seg" id="fRepeatSeg">
+          <button type="button" data-value="yes">リピートしたい</button>
+          <button type="button" data-value="maybe">検討中</button>
+          <button type="button" data-value="no">しない</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fIngredientsRaw">成分</label>
+        <textarea id="fIngredientsRaw" rows="3"
+          placeholder="成分表示をここに貼り付けて「整形して追加」を押すと、自動で1つずつに分かれます"></textarea>
+        <button type="button" id="btnFormat" class="btn btn-sub btn-block">整形して追加</button>
+        <div id="ingredientChips" class="chips"></div>
+        <div class="chip-add-row">
+          <input type="text" id="fIngredientOne" placeholder="成分を1つ追加">
+          <button type="button" id="btnAddIngredient" class="btn btn-sub">追加</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fReview">使用感・メモ</label>
+        <textarea id="fReview" rows="4" placeholder="使ってみた感想など"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" id="btnSave" class="btn btn-primary btn-block">保存する</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- 商品詳細 -->
+  <section id="view-detail" class="view hidden">
+    <div id="detailContent"></div>
+    <div class="detail-actions">
+      <button id="btnEdit" class="btn btn-sub" type="button">編集</button>
+      <button id="btnDelete" class="btn btn-danger" type="button">削除</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
