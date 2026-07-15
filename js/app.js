@@ -1283,6 +1283,12 @@ function setupEvents() {
     });
   });
 
+  // ホーム画面追加の案内バナー
+  $('#btnDismissA2hs').addEventListener('click', () => {
+    $('#a2hsBanner').classList.add('hidden');
+    dbPutSetting('a2hsDismissed', true).catch(() => { /* 保存できなくても閉じる */ });
+  });
+
   $('#filterCategory').addEventListener('change', (e) => {
     state.filterCategory = e.target.value;
     renderList();
@@ -1386,6 +1392,29 @@ function setupEvents() {
   });
 }
 
+// ---------- PWA(オフライン対応・ホーム画面追加の案内) ----------
+
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.error('Service Worker登録失敗:', err); // 失敗してもアプリ自体は動く
+    });
+  }
+}
+
+// ホーム画面に追加済み(アプリとして起動)かどうか
+function isStandalone() {
+  return window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+async function maybeShowA2hsBanner() {
+  if (isStandalone()) return;
+  const dismissed = await dbGetSetting('a2hsDismissed');
+  if (dismissed) return;
+  $('#a2hsBanner').classList.remove('hidden');
+}
+
 // ---------- 起動 ----------
 
 async function init() {
@@ -1404,6 +1433,8 @@ async function init() {
   }
   renderList();
   showView('home');
+  registerServiceWorker();
+  maybeShowA2hsBanner().catch(() => { /* 案内が出せなくても致命的ではない */ });
 }
 
 init();

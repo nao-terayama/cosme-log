@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Cosme log アイコン: ミニマルな口紅の線画 -->
+  <rect width="512" height="512" fill="#F7F6F4"/>
+  <g fill="none" stroke="#1a1a1a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 口紅の先端(斜めカット) -->
+    <path d="M226 250 L226 152 C226 128 240 112 260 104 L281 126 C285 132 286 138 286 146 L286 250 Z"/>
+    <!-- カット面の縁 -->
+    <path d="M226 152 Q258 148 281 126"/>
+    <!-- 中筒 -->
+    <rect x="214" y="250" width="84" height="70"/>
+    <!-- 外筒 -->
+    <rect x="196" y="320" width="120" height="100" rx="6"/>
+    <!-- 外筒の飾り線 -->
+    <path d="M240 400 L272 400"/>
+  </g>
+</svg>

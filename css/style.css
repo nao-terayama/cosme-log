@@ -64,6 +64,27 @@ body {
 main { max-width: 560px; margin: 0 auto; padding: 16px; }
 
 /* ---------- ホーム ---------- */
+.a2hs {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.a2hs p { flex: 1; font-size: 12px; line-height: 1.7; }
+
+.a2hs-icon {
+  display: inline-block;
+  border: 1px solid var(--text-sub);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
 .search-box { margin-bottom: 8px; }
 
 .search-box input {

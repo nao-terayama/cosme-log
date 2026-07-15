@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cosme log</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#fafafa">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cosme log">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 </head>
 <body>
 
@@ -19,6 +26,14 @@
 
   <!-- ホーム(一覧) -->
   <section id="view-home" class="view">
+    <div id="a2hsBanner" class="a2hs hidden">
+      <p>
+        <strong>ホーム画面に追加がおすすめ</strong><br>
+        アプリのように開けて、データも消えにくくなります。<br>
+        Safariの共有ボタン(<span class="a2hs-icon">□↑</span>)→「ホーム画面に追加」
+      </p>
+      <button id="btnDismissA2hs" class="btn btn-sub" type="button">閉じる</button>
+    </div>
     <div class="search-box">
       <input type="search" id="homeSearch" placeholder="商品名・ブランドで検索" enterkeyhint="search">
     </div>
