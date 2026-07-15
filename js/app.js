@@ -35,6 +35,9 @@ const state = {
   formStatus: 'stock',
   formRating: 0,
   formRepeat: '',
+  formBack: 'home',      // フォームの「戻る」の行き先: home / add / search / detail
+  rakutenAppId: '',      // 楽天アプリID(設定画面で登録)
+  searchOriginJan: '',   // バーコード読み取りから来た場合のJANコード
 };
 
 // 画像表示用URLの後片付けリスト(メモリ節約)
@@ -90,12 +93,18 @@ function splitIngredients(text) {
 // ---------- 画面切り替え ----------
 
 function showView(name, title) {
-  ['home', 'form', 'detail'].forEach((v) => {
+  ['home', 'add', 'scan', 'search', 'form', 'detail', 'settings'].forEach((v) => {
     $(`#view-${v}`).classList.toggle('hidden', v !== name);
   });
   $('#hdrTitle').textContent = title || 'Cosme log';
   $('#btnBack').classList.toggle('hidden', name === 'home');
+  $('#btnSettings').classList.toggle('hidden', name !== 'home');
   window.scrollTo(0, 0);
+}
+
+function currentView() {
+  const names = ['home', 'add', 'scan', 'search', 'form', 'detail', 'settings'];
+  return names.find((v) => !$(`#view-${v}`).classList.contains('hidden')) || 'home';
 }
 
 function goHome() {
@@ -277,9 +286,10 @@ function updateImagePreview() {
   }
 }
 
-// フォームを開く(product=nullなら新規)
-function openForm(product) {
+// フォームを開く(product=nullなら新規。prefillで楽天の検索結果を流し込める)
+function openForm(product, prefill) {
   state.editingId = product ? product.id : null;
+  state.formBack = product ? 'detail' : 'add';
   state.formIngredients = product ? (product.ingredients || []).slice() : [];
   state.formImageBlob = product ? product.image || null : null;
   state.formImageChanged = false;
@@ -303,6 +313,17 @@ function openForm(product) {
   $('#fIngredientOne').value = '';
   $('#fReview').value = product ? product.review || '' : '';
   $('#fImage').value = '';
+
+  // 楽天の検索結果からの流し込み(商品名などは後から自由に編集できる)
+  if (!product && prefill) {
+    if (prefill.name) $('#fName').value = prefill.name;
+    if (prefill.price != null) $('#fPrice').value = prefill.price;
+    if (prefill.janCode) $('#fJan').value = prefill.janCode;
+    if (prefill.image) {
+      state.formImageBlob = prefill.image;
+      state.formImageChanged = true;
+    }
+  }
 
   setSeg($('#fStatusSeg'), state.formStatus);
   setSeg($('#fRepeatSeg'), state.formRepeat);
@@ -558,20 +579,280 @@ async function deleteCurrent() {
   goHome();
 }
 
+// ---------- 設定画面 ----------
+
+function openSettings() {
+  $('#settingAppId').value = state.rakutenAppId || '';
+  $('#appIdStatus').textContent = '';
+  showView('settings', '設定');
+}
+
+async function saveAppId() {
+  const v = $('#settingAppId').value.trim();
+  await dbPutSetting('rakutenAppId', v);
+  state.rakutenAppId = v;
+  $('#appIdStatus').textContent = v ? '保存しました。検索とバーコード読み取りが使えます。' : '空にして保存しました。';
+}
+
+// ---------- 登録方法の選択 ----------
+
+function openAdd() {
+  const hasId = !!state.rakutenAppId;
+  $('#btnMethodScan').disabled = !hasId;
+  $('#btnMethodSearch').disabled = !hasId;
+  $('#addApiNote').classList.toggle('hidden', hasId);
+  showView('add', '商品を登録');
+}
+
+// ---------- バーコード読み取り ----------
+
+let zxingReader = null;
+let scanHandled = false;
+let scanAudioCtx = null; // 読み取り成功音用(タップ時に作る必要がある)
+
+function playScanSound() {
+  try {
+    if (!scanAudioCtx) return;
+    const o = scanAudioCtx.createOscillator();
+    const g = scanAudioCtx.createGain();
+    o.frequency.value = 1320;
+    g.gain.value = 0.08;
+    o.connect(g);
+    g.connect(scanAudioCtx.destination);
+    o.start();
+    o.stop(scanAudioCtx.currentTime + 0.12);
+  } catch (e) { /* 音が出なくても読み取りは続行 */ }
+}
+
+async function startScan() {
+  scanHandled = false;
+  showView('scan', 'バーコード読み取り');
+  $('#scanStatus').textContent = 'カメラを起動しています…';
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC && !scanAudioCtx) scanAudioCtx = new AC();
+    if (scanAudioCtx && scanAudioCtx.state === 'suspended') scanAudioCtx.resume();
+  } catch (e) { /* 音はおまけなので失敗しても無視 */ }
+  try {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8]);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    await zxingReader.decodeFromConstraints(
+      { audio: false, video: { facingMode: { ideal: 'environment' } } },
+      $('#scanVideo'),
+      (result) => { if (result) onBarcodeDetected(result.getText()); }
+    );
+    $('#scanStatus').textContent = 'バーコードを枠の中に写してください';
+  } catch (err) {
+    console.error(err);
+    $('#scanStatus').textContent = 'カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。';
+  }
+}
+
+function stopScan() {
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch (e) { /* すでに停止済みなら無視 */ }
+    zxingReader = null;
+  }
+}
+
+function onBarcodeDetected(code) {
+  if (scanHandled) return;
+  scanHandled = true;
+  playScanSound();
+  if (navigator.vibrate) navigator.vibrate(80);
+  stopScan();
+  openSearch(code, true);
+}
+
+// ---------- 楽天で商品検索 ----------
+
+function openSearch(query, fromBarcode) {
+  state.searchOriginJan = fromBarcode ? query : '';
+  $('#searchInput').value = query || '';
+  $('#searchResults').innerHTML = '';
+  $('#searchStatus').textContent = fromBarcode
+    ? `バーコード(${query})を読み取りました。楽天で探しています…`
+    : '';
+  showView('search', '楽天で商品検索');
+  if (fromBarcode) runSearch();
+}
+
+async function runSearch() {
+  const q = $('#searchInput').value.trim();
+  if (!q) return;
+  const status = $('#searchStatus');
+  status.textContent = '検索しています…';
+  $('#searchResults').innerHTML = '';
+  try {
+    const url = new URL('https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601');
+    url.searchParams.set('applicationId', state.rakutenAppId);
+    url.searchParams.set('keyword', q);
+    url.searchParams.set('hits', '15');
+    url.searchParams.set('formatVersion', '2');
+    const res = await fetch(url);
+    if (!res.ok) {
+      let msg = '検索に失敗しました。少し時間をおいてもう一度お試しください。';
+      try {
+        const ej = await res.json();
+        if (ej && /applicationId|application_id/i.test(ej.error_description || '')) {
+          msg = '楽天アプリIDが正しくないようです。設定画面で確認してください。';
+        }
+      } catch (e) { /* エラー内容が読めない場合は一般メッセージのまま */ }
+      status.textContent = `${msg} 下のボタンから手動でも入力できます。`;
+      return;
+    }
+    const json = await res.json();
+    const items = json.Items || [];
+    if (items.length === 0) {
+      status.textContent = '見つかりませんでした。言葉を変えて再検索するか、下のボタンから手動で入力できます。';
+      return;
+    }
+    status.textContent = `${items.length}件見つかりました。登録したい商品を選んでください。`;
+    renderSearchResults(items);
+  } catch (err) {
+    console.error(err);
+    status.textContent = '通信エラーで検索できませんでした。電波の良い場所でもう一度お試しください。';
+  }
+}
+
+// 検索結果の画像URL(小さいサイズ指定を大きめに差し替える)
+function resultImageUrl(item) {
+  const arr = item.mediumImageUrls || [];
+  if (arr.length === 0) return '';
+  const first = typeof arr[0] === 'string' ? arr[0] : arr[0].imageUrl || '';
+  return first.replace('_ex=128x128', '_ex=512x512');
+}
+
+function renderSearchResults(items) {
+  const box = $('#searchResults');
+  box.innerHTML = '';
+  items.forEach((item) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const imgUrl = resultImageUrl(item);
+    if (imgUrl) {
+      const img = document.createElement('img');
+      img.src = imgUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = '画像なし';
+    }
+
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const name = document.createElement('div');
+    name.className = 'card-name';
+    name.textContent = item.itemName || '';
+
+    const price = document.createElement('div');
+    price.className = 'result-price';
+    price.textContent = item.itemPrice != null ? `¥${Number(item.itemPrice).toLocaleString()}` : '';
+
+    const shop = document.createElement('div');
+    shop.className = 'result-shop';
+    shop.textContent = item.shopName || '';
+
+    body.append(name, price, shop);
+    card.append(thumb, body);
+    card.addEventListener('click', () => selectSearchItem(item));
+    box.appendChild(card);
+  });
+}
+
+// 画像を取り込んでBlobにする(直接ダメなら中継サービス経由で再挑戦)
+async function fetchImageBlob(url) {
+  try {
+    const r = await fetch(url);
+    if (r.ok) return await r.blob();
+  } catch (e) { /* 直接はCORSで失敗することが多い */ }
+  try {
+    const proxied = 'https://images.weserv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, ''));
+    const r2 = await fetch(proxied);
+    if (r2.ok) return await r2.blob();
+  } catch (e) { /* 中継サービスもダメなら画像なしで続行 */ }
+  return null;
+}
+
+async function selectSearchItem(item) {
+  $('#searchStatus').textContent = '商品情報を取り込んでいます…';
+  const imgUrl = resultImageUrl(item);
+  const blob = imgUrl ? await fetchImageBlob(imgUrl) : null;
+  openForm(null, {
+    name: item.itemName || '',
+    price: item.itemPrice != null ? Number(item.itemPrice) : null,
+    janCode: state.searchOriginJan,
+    image: blob,
+  });
+  state.formBack = 'search';
+  $('#searchStatus').textContent = `${$('#searchResults').children.length}件見つかりました。登録したい商品を選んでください。`;
+  if (!blob && imgUrl) {
+    alert('商品情報を取り込みました(画像だけ取り込めなかったので、必要なら「写真を選ぶ」から設定してください)');
+  }
+}
+
 // ---------- イベント登録 ----------
 
 function setupEvents() {
-  $('#btnAdd').addEventListener('click', () => openForm(null));
+  $('#btnAdd').addEventListener('click', () => openAdd());
+  $('#btnSettings').addEventListener('click', () => openSettings());
 
   $('#btnBack').addEventListener('click', () => {
-    const formVisible = !$('#view-form').classList.contains('hidden');
-    if (formVisible && state.editingId != null) {
-      openDetail(state.editingId); // 編集をやめて詳細に戻る
-    } else if (formVisible && state.detailId != null) {
-      openDetail(state.detailId);
+    const view = currentView();
+    if (view === 'form') {
+      if (state.formBack === 'detail' && state.editingId != null) {
+        openDetail(state.editingId); // 編集をやめて詳細に戻る
+      } else if (state.formBack === 'search') {
+        showView('search', '楽天で商品検索'); // 検索結果に戻る
+      } else if (state.formBack === 'add') {
+        openAdd();
+      } else {
+        goHome();
+      }
+    } else if (view === 'scan') {
+      stopScan();
+      openAdd();
+    } else if (view === 'search') {
+      openAdd();
     } else {
-      goHome();
+      goHome(); // add / settings / detail はホームへ
     }
+  });
+
+  // 登録方法の選択
+  $('#btnMethodScan').addEventListener('click', () => startScan());
+  $('#btnMethodSearch').addEventListener('click', () => openSearch('', false));
+  $('#btnMethodManual').addEventListener('click', () => openForm(null));
+  $('#btnGoSettings').addEventListener('click', () => openSettings());
+
+  // バーコード読み取り
+  $('#btnScanCancel').addEventListener('click', () => {
+    stopScan();
+    openAdd();
+  });
+
+  // 楽天検索
+  $('#btnSearch').addEventListener('click', () => runSearch());
+  $('#searchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+  });
+  $('#btnSearchManual').addEventListener('click', () => {
+    openForm(null, { janCode: state.searchOriginJan });
+    state.formBack = 'search';
+  });
+
+  // 設定
+  $('#btnSaveAppId').addEventListener('click', () => {
+    saveAppId().catch((err) => {
+      console.error(err);
+      alert('保存に失敗しました。もう一度お試しください。');
+    });
   });
 
   $('#filterCategory').addEventListener('change', (e) => {
@@ -672,6 +953,7 @@ async function init() {
   buildCategoryOptions();
   setupEvents();
   try {
+    state.rakutenAppId = (await dbGetSetting('rakutenAppId')) || '';
     await loadProducts();
   } catch (err) {
     console.error(err);
