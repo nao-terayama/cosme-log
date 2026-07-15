@@ -10,6 +10,7 @@
 
 <header class="app-header">
   <button id="btnBack" class="hdr-btn hidden" type="button">‹ 戻る</button>
+  <button id="btnStats" class="hdr-btn" type="button">統計</button>
   <h1 id="hdrTitle">Cosme log</h1>
   <button id="btnSettings" class="hdr-btn hdr-btn-right" type="button">設定</button>
 </header>
@@ -18,14 +19,25 @@
 
   <!-- ホーム(一覧) -->
   <section id="view-home" class="view">
+    <div class="search-box">
+      <input type="search" id="homeSearch" placeholder="商品名・ブランドで検索" enterkeyhint="search">
+    </div>
     <div class="toolbar">
       <select id="filterCategory" aria-label="カテゴリで絞り込み"></select>
       <select id="filterStatus" aria-label="ステータスで絞り込み"></select>
+      <select id="filterRating" aria-label="星評価で絞り込み"></select>
+      <select id="filterRepeat" aria-label="リピート意向で絞り込み"></select>
       <select id="sortSelect" aria-label="並び替え">
         <option value="createdAt:desc">登録が新しい順</option>
         <option value="createdAt:asc">登録が古い順</option>
         <option value="purchaseDate:desc">購入日が新しい順</option>
         <option value="purchaseDate:asc">購入日が古い順</option>
+        <option value="openedDate:desc">開封日が新しい順</option>
+        <option value="openedDate:asc">開封日が古い順</option>
+        <option value="price:desc">価格が高い順</option>
+        <option value="price:asc">価格が安い順</option>
+        <option value="rating:desc">星評価が高い順</option>
+        <option value="rating:asc">星評価が低い順</option>
       </select>
     </div>
     <p id="listCount" class="list-count"></p>
@@ -82,6 +94,11 @@
     </div>
   </section>
 
+  <!-- 統計・振り返り -->
+  <section id="view-stats" class="view hidden">
+    <div id="statsContent"></div>
+  </section>
+
   <!-- 設定 -->
   <section id="view-settings" class="view hidden">
     <div class="settings-card">
@@ -100,6 +117,37 @@
         発行後の「アプリ一覧」に表示される<strong>アプリケーションID</strong>と、
         <strong>アクセスキー</strong>(●●●の右にある目のマークで表示→コピー)をそれぞれ貼り付けてください。
       </p>
+    </div>
+
+    <div class="settings-card">
+      <h2>アイテム種別の管理</h2>
+      <p class="settings-desc">カテゴリごとの「アイテム種別」の選択肢を、自分好みに追加・削除できます。</p>
+      <select id="typeCategorySelect"></select>
+      <div id="typeChips" class="chips"></div>
+      <div class="chip-add-row">
+        <input type="text" id="typeNewInput" placeholder="種別を追加(例: リップクリーム)">
+        <button id="btnAddType" class="btn btn-sub" type="button">追加</button>
+      </div>
+      <button id="btnResetTypes" class="btn btn-sub btn-block hidden" type="button">このカテゴリを初期セットに戻す</button>
+    </div>
+
+    <div class="settings-card">
+      <h2>バックアップ</h2>
+      <p class="settings-desc">
+        登録した商品(画像込み)をファイルに保存できます。iPhoneは長期間アプリを開かないとデータが消えることがあるため、ときどき保存しておくと安心です。
+      </p>
+      <button id="btnExport" class="btn btn-primary btn-block" type="button">バックアップを保存(書き出し)</button>
+      <p id="exportStatus" class="settings-status"></p>
+      <label class="btn btn-sub btn-block" for="importFile">バックアップから読み込む</label>
+      <input type="file" id="importFile" accept=".json,application/json" class="visually-hidden">
+      <p id="importStatus" class="settings-status"></p>
+      <p class="settings-help">読み込むと、今あるデータはそのまま残り、バックアップの中身が追加されます。まっさらな状態に戻したいときは、先に下の「全データ削除」をしてから読み込んでください。</p>
+    </div>
+
+    <div class="settings-card">
+      <h2>全データ削除</h2>
+      <p class="settings-desc">登録した商品データをすべて削除します(設定は残ります)。削除前にバックアップの保存をおすすめします。</p>
+      <button id="btnWipe" class="btn btn-danger btn-block" type="button">商品データをすべて削除</button>
     </div>
   </section>
 

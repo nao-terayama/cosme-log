@@ -64,6 +64,12 @@ async function dbGetAllProducts() {
   return reqAsPromise(store.getAll());
 }
 
+async function dbClearProducts() {
+  const db = await openDB();
+  const store = db.transaction('products', 'readwrite').objectStore('products');
+  return reqAsPromise(store.clear());
+}
+
 async function dbGetSetting(key) {
   const db = await openDB();
   const store = db.transaction('settings', 'readonly').objectStore('settings');
