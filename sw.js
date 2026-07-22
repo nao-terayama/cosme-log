@@ -2,7 +2,7 @@
    注意: アプリのファイルを更新したら、下のバージョン番号を必ず1つ上げること。 */
 'use strict';
 
-const CACHE = 'cosmelog-v1';
+const CACHE = 'cosmelog-v2';
 
 const ASSETS = [
   './',

@@ -32,6 +32,7 @@ function getItemTypes(category) {
 const state = {
   products: [],
   filterCategory: '',
+  filterItemType: '',
   filterStatus: '',
   filterRating: '',
   filterRepeat: '',
@@ -155,6 +156,23 @@ function buildFilterOptions() {
   rpSel.appendChild(new Option('リピート: すべて', ''));
   Object.entries(REPEAT_LABELS).forEach(([v, label]) => rpSel.appendChild(new Option(label, v)));
   rpSel.appendChild(new Option('未設定', 'none'));
+
+  buildFilterItemTypeOptions();
+}
+
+// カテゴリの絞り込みに合わせて、アイテム種別の絞り込みの選択肢を作り直す
+function buildFilterItemTypeOptions() {
+  const sel = $('#filterItemType');
+  sel.innerHTML = '';
+  const cat = state.filterCategory;
+  if (!cat) {
+    sel.appendChild(new Option('種別: 先にカテゴリを選択', ''));
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  sel.appendChild(new Option('種別: すべて', ''));
+  getItemTypes(cat).forEach((t) => sel.appendChild(new Option(t, t)));
 }
 
 async function loadProducts() {
@@ -166,6 +184,7 @@ function renderList() {
 
   let items = state.products.slice();
   if (state.filterCategory) items = items.filter((p) => p.category === state.filterCategory);
+  if (state.filterItemType) items = items.filter((p) => p.itemType === state.filterItemType);
   if (state.filterStatus) items = items.filter((p) => p.status === state.filterStatus);
   if (state.filterRating) {
     if (state.filterRating === 'none') items = items.filter((p) => !p.rating);
@@ -1291,6 +1310,12 @@ function setupEvents() {
 
   $('#filterCategory').addEventListener('change', (e) => {
     state.filterCategory = e.target.value;
+    state.filterItemType = ''; // カテゴリを変えたら種別の絞り込みはリセット
+    buildFilterItemTypeOptions();
+    renderList();
+  });
+  $('#filterItemType').addEventListener('change', (e) => {
+    state.filterItemType = e.target.value;
     renderList();
   });
   $('#filterStatus').addEventListener('change', (e) => {
