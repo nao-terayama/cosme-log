@@ -34,16 +34,33 @@ function reqAsPromise(req) {
   });
 }
 
+// 画像を「中身ごとコピーした新しいBlob」にする。
+// iPhoneのSafariには、DBから取り出したBlobをそのまま上書き保存すると
+// 元データが消えて画像が空になる不具合があるため、保存前に必ず通す。
+// (写真ライブラリから選んだFileも、一時ファイルへの参照のままにならないよう同様にコピーする)
+async function withFreshImage(data) {
+  if (!(data.image instanceof Blob)) return data;
+  try {
+    const buf = await data.image.arrayBuffer();
+    return { ...data, image: new Blob([buf], { type: data.image.type }) };
+  } catch (e) {
+    console.error('画像のコピーに失敗(元のまま保存します):', e);
+    return data;
+  }
+}
+
 async function dbAddProduct(data) {
+  const fresh = await withFreshImage(data);
   const db = await openDB();
   const store = db.transaction('products', 'readwrite').objectStore('products');
-  return reqAsPromise(store.add(data)); // 新しいidが返る
+  return reqAsPromise(store.add(fresh)); // 新しいidが返る
 }
 
 async function dbPutProduct(data) {
+  const fresh = await withFreshImage(data);
   const db = await openDB();
   const store = db.transaction('products', 'readwrite').objectStore('products');
-  return reqAsPromise(store.put(data));
+  return reqAsPromise(store.put(fresh));
 }
 
 async function dbDeleteProduct(id) {

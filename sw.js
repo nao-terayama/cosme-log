@@ -2,7 +2,7 @@
    注意: アプリのファイルを更新したら、下のバージョン番号を必ず1つ上げること。 */
 'use strict';
 
-const CACHE = 'cosmelog-v2';
+const CACHE = 'cosmelog-v3';
 
 const ASSETS = [
   './',
@@ -20,7 +20,11 @@ const ASSETS = [
 // インストール時: アプリ一式をキャッシュに保存
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    // cache:'reload' = ブラウザの一時保存を使わず、必ずサーバーから最新を取る
+    // (使わないと、公開直後に古いファイルを新バージョンとして保存してしまう)
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -44,7 +48,7 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {
     // ページ本体: まずネットワーク(最新を取りに行く)、つながらなければキャッシュ
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('index.html', copy));
@@ -58,7 +62,7 @@ self.addEventListener('fetch', (e) => {
   // その他のファイル: キャッシュ優先で即表示し、裏で新しいものを取りに行く
   e.respondWith(
     caches.match(req).then((cached) => {
-      const fresh = fetch(req)
+      const fresh = fetch(req, { cache: 'no-cache' }) // 更新があるか必ずサーバーに確認
         .then((res) => {
           if (res && res.ok) {
             const copy = res.clone();
